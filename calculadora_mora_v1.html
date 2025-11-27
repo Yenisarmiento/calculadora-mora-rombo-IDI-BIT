@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Calculadora de Intereses Moratorios - Rombo IDI BIT</title>
+
+  <style>
+    :root {
+      --rombo-primary: #002060;   /* Naranja */
+      --rombo-secondary: #4080E0; /* Verde */
+      --rombo-dark: #002060;      /* Negro */
+      --rombo-light: #FFFFFF;     /* Fondo claro */
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: var(--rombo-light);
+      color: var(--rombo-dark);
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--rombo-primary);
+      margin-bottom: 5px;
+    }
+
+    h2 {
+      color: var(--rombo-secondary);
+      margin-top: 25px;
+    }
+
+    .container {
+      max-width: 750px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 25px 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      border-top: 6px solid var(--rombo-primary);
+    }
+
+    .subtitulo {
+      text-align: center;
+      color: #555;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+
+    .fila {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .field {
+      flex: 1;
+      min-width: 200px;
+      margin-bottom: 15px;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    button {
+      padding: 10px 17px;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+
+    .btn-calcular {
+      background: var(--rombo-primary);
+      color: white;
+    }
+
+    .btn-limpiar {
+      background: #555;
+      color: white;
+    }
+
+    .btn-pdf {
+      background: var(--rombo-secondary);
+      color: white;
+    }
+
+    .result {
+      background: #e9f8f1;
+      border: 1px solid var(--rombo-secondary);
+      padding: 10px;
+      font-weight: bold;
+      border-radius: 5px;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- CONTENIDO QUE SE EXPORTA A PDF -->
+  <div class="container" id="contenido">
+    <h1>Calculadora de Mora - Rombo</h1>
+    <p class="subtitulo">Valores liquidados al día de hoy.</p>
+
+    <!-- DATOS DEL DEUDOR -->
+    <h2>Datos del deudor</h2>
+
+    <div class="fila">
+      <div class="field">
+        <label>Nombre completo</label>
+        <input type="text" id="nombreDeudor" placeholder="Ej: Juan Pérez">
+      </div>
+
+      <div class="field">
+        <label>Documento de identificación</label>
+        <input type="text" id="documentoId" placeholder="Ej: CC 1234567890">
+      </div>
+
+      <div class="field">
+        <label>Número de la cuota</label>
+        <input type="text" id="numeroCuota" placeholder="Ej: 3 de 12">
+      </div>
+    </div>
+
+    <!-- DATOS DE LA OBLIGACIÓN -->
+    <h2>Datos de la obligación</h2>
+
+    <div class="field">
+      <label>Capital adeudado ($)</label>
+      <input type="number" id="capital" placeholder="Ej: 53929" min="0">
+    </div>
+
+    <div class="field">
+      <label>Interés corriente ($)</label>
+      <input type="number" id="interesCorrienteValor" placeholder="Ej: 0" min="0">
+    </div>
+
+    <div class="fila">
+      <div class="field">
+        <label>Días de mora</label>
+        <input type="number" id="diasMora" placeholder="Ej: 72" min="0">
+      </div>
+
+      <div class="field">
+        <label>Tasa de mora mensual (%)</label>
+        <input type="number" id="tasaMoraMensual" value="1.5" step="0.01">
+      </div>
+    </div>
+
+    <!-- BOTONES -->
+    <div class="field">
+      <button class="btn-calcular" onclick="calcular()">Calcular</button>
+      <button class="btn-limpiar" onclick="limpiar()">Limpiar</button>
+      <button class="btn-pdf" onclick="generarPDF()">Descargar PDF</button>
+    </div>
+
+    <!-- RESULTADOS -->
+    <h2>Resultados de la liquidación</h2>
+
+    <div class="field">
+      <label>Valor de la cuota</label>
+      <div class="result" id="valorCuota">$ 0,00</div>
+    </div>
+
+    <div class="field">
+      <label>Interés corriente (% sobre capital)</label>
+      <div class="result" id="interesCorrientePorcentaje">0,00 %</div>
+    </div>
+
+    <div class="field">
+      <label>Interés de mora</label>
+      <div class="result" id="interesMora">$ 0,00</div>
+    </div>
+
+    <div class="field">
+      <label>Total a pagar</label>
+      <div class="result" id="totalPagar">$ 0,00</div>
+    </div>
+  </div>
+
+  <!-- LIBRERÍAS PARA PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <script>
+    function formatoMoneda(v) {
+      return "$ " + Number(v).toLocaleString("es-CO", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    function formatoPorcentaje(v) {
+      return Number(v).toLocaleString("es-CO", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }) + " %";
+    }
+
+    function calcular() {
+      let capital = parseFloat(document.getElementById("capital").value) || 0;
+      let icv = parseFloat(document.getElementById("interesCorrienteValor").value) || 0;
+      let dias = parseInt(document.getElementById("diasMora").value) || 0;
+      let tasa = parseFloat(document.getElementById("tasaMoraMensual").value) || 0;
+
+      let cuota = capital + icv;
+      let icp = capital > 0 ? (icv / capital) * 100 : 0;
+      let mora = (capital * (tasa / 100) / 30) * dias;
+      let total = cuota + mora;
+
+      document.getElementById("valorCuota").textContent = formatoMoneda(cuota);
+      document.getElementById("interesCorrientePorcentaje").textContent = formatoPorcentaje(icp);
+      document.getElementById("interesMora").textContent = formatoMoneda(mora);
+      document.getElementById("totalPagar").textContent = formatoMoneda(total);
+    }
+
+    function limpiar() {
+      document.querySelectorAll("input").forEach(i => i.value = "");
+      document.getElementById("tasaMoraMensual").value = 1.5;
+      document.getElementById("valorCuota").textContent = "$ 0,00";
+      document.getElementById("interesCorrientePorcentaje").textContent = "0,00 %";
+      document.getElementById("interesMora").textContent = "$ 0,00";
+      document.getElementById("totalPagar").textContent = "$ 0,00";
+    }
+
+    function generarPDF() {
+      const { jsPDF } = window.jspdf;
+
+      const doc = new jsPDF("p", "pt", "a4");
+      const contenido = document.getElementById("contenido");
+
+      const nombre = document.getElementById("nombreDeudor").value || "cliente";
+      const nombreArchivo = `Liquidacion_mora_${nombre.replace(/\s+/g, "_")}.pdf`;
+
+      // Ocultar botones del PDF
+      const botones = contenido.querySelectorAll("button");
+      botones.forEach(b => b.style.display = "none");
+
+      doc.html(contenido, {
+        callback: function () {
+          botones.forEach(b => b.style.display = "inline-block");
+          doc.save(nombreArchivo);
+        },
+        x: 20,
+        y: 20,
+        html2canvas: { scale: 0.7 }
+      });
+    }
+  </script>
+
+</body>
+</html>
